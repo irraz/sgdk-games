@@ -20,11 +20,22 @@ typedef struct {
 Entity enemies[MAX_ENEMIES];
 
 u16 enemiesLeft = 0;
+u16 bulletsOnScreen = 0;
 
 #define LEFT_EDGE 0
 #define RIGHT_EDGE 320
 
+#define MAX_BULLETS	3
+Entity bullets[MAX_BULLETS];
+
+
+
 Entity player = {0, 0, 16, 16, 0, 0, 0, NULL, "PLAYER" };
+
+
+
+
+
 
 // Función para gestionar la vida del sprite de jugador, volviendo oculto o visible
 void killEntity(Entity* e){
@@ -57,6 +68,46 @@ else if(e->x < LEFT_EDGE){
 }
 
 
+	void positionBullets(){
+		u16 i = 0;
+		Entity *b;
+		for(i = 0; i < MAX_BULLETS; i++){
+			b = &bullets[i];
+			if(b->health > 0){
+				b->y += b->vely;
+
+				if(b->y + b->h < 0){
+					killEntity(b);
+					bulletsOnScreen--;
+				} else{
+					SPR_setPosition(b->sprite,b->x,b->y);
+				}
+			}
+		}
+	}
+
+void shootBullet(){
+    if( bulletsOnScreen < MAX_BULLETS ){
+        Entity* b;
+        u16 i = 0;
+        for(i=0; i<MAX_BULLETS; i++){
+            b = &bullets[i];
+            if(b->health == 0){
+
+                b->x = player.x+4;
+                b->y = player.y;
+
+                reviveEntity(b);
+                b->vely = -3;
+
+                SPR_setPosition(b->sprite,b->x,b->y);
+                bulletsOnScreen++;
+                break;
+            }
+        }	
+    }
+}
+
 void myJoyHandler( u16 joy, u16 changed, u16 state)
 {
     if (joy == JOY_1)
@@ -73,6 +124,10 @@ void myJoyHandler( u16 joy, u16 changed, u16 state)
 			SPR_setAnim(player.sprite,ANIM_MOVE);
 			SPR_setHFlip(player.sprite,FALSE);
         }
+		else if (state & BUTTON_B & changed)
+			{
+				shootBullet();
+			}
         else{
             if( (changed & BUTTON_RIGHT) | (changed & BUTTON_LEFT) ){
                 player.velx = 0;
@@ -149,13 +204,24 @@ VDP_setScrollingMode(HSCROLL_PLANE,VSCROLL_PLANE);
 
 VDP_setPaletteColor(34,RGB24_TO_VDPCOLOR(0x0078f8));
 
-
+	/*Create all bullet sprites*/
+	Entity* b = bullets;
+	for(i = 0; i < MAX_BULLETS; i++){
+		b->x = 0;
+		b->y = -10;
+		b->w = 8;
+		b->h = 8;
+		b->sprite = SPR_addSprite(&bullet,bullets[0].x,bullets[0].y,TILE_ATTR(PAL1,0,FALSE,FALSE));
+		sprintf(b->name, "Bu%d",i);
+		b++;
+	}
 
 	while(1)
 	{
 		VDP_setVerticalScroll(BG_B,offset -= 2);
 		if(offset <= -256) offset = 0;
 		positionPlayer();
+		positionBullets();
 		positionEnemies();
 		SPR_update();
 		SYS_doVBlankProcess();
